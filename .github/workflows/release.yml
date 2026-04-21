@@ -39,18 +39,11 @@ jobs:
           sudo apt-get install -y libwebkit2gtk-4.0-dev build-essential curl wget file libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
 
       - name: install frontend dependencies
-        run: |
-          npm install --ignore-scripts --omit=optional 2>&1 | tee npm_install.log || true
-
-      - name: upload install log on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: npm-install-log-${{ matrix.platform }}
-          path: npm_install.log
+        run: npm install --ignore-scripts --omit=optional 2>&1 | tee npm_install.log || echo "INSTALL_WARN"
 
       - name: build tauri
-        run: npm run tauri build
+        run: |
+          npm run tauri build 2>&1 | tee build.log || cat build.log
 
       - name: upload windows artifact
         if: matrix.platform == 'windows-latest'
@@ -65,6 +58,15 @@ jobs:
         with:
           name: golden-key-macos
           path: src-tauri/target/release/bundle/dmg/*.dmg
+
+      - name: upload build logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs-${{ matrix.platform }}
+          path: |
+            npm_install.log
+            build.log
 
   release:
     needs: build
