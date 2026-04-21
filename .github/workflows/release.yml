@@ -46,11 +46,10 @@ jobs:
 
       - name: upload windows artifact
         if: matrix.platform == 'windows-latest'
-        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: golden-key-windows
-          path: src-tauri/target/release/bundle/dmg/*.exe
+          path: src-tauri/target/release/bundle/nsis/*.exe
 
       - name: upload macos artifact
         if: matrix.platform == 'macos-latest'
@@ -86,7 +85,7 @@ jobs:
           prerelease: false
           generate_release_notes: false
           files: |
-            artifacts/windows/*.exe
-            artifacts/macos/*.dmg
+            artifacts/windows/**/*
+            artifacts/macos/**/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
