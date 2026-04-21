@@ -40,7 +40,7 @@ jobs:
 
       - name: install frontend dependencies
         run: |
-          npm install --loglevel=verbose 2>&1 | tee npm_install.log || true
+          npm install --no-optional 2>&1 | tee npm_install.log
 
       - name: upload install log on failure
         if: failure()
