@@ -748,12 +748,12 @@ Current Desc: {}
     let mut result = serde_json::json!({"zh": "", "en": ""});
 
     if lang == "both" {
-        if let Ok(json) = serde_json::from_str::<serde_json::Value>(json_str) {
+        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&json_str) {
             result["zh"] = json["zh"].clone();
             result["en"] = json["en"].clone();
         }
     } else {
-        if let Ok(json) = serde_json::from_str::<serde_json::Value>(json_str) {
+        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&json_str) {
             let content = json["content"].as_str().unwrap_or("").to_string();
             if lang == "zh" {
                 result["zh"] = serde_json::json!(content);
