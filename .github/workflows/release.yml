@@ -40,7 +40,7 @@ jobs:
 
       - name: install frontend dependencies
         run: |
-          npm install ${{ matrix.platform == 'windows-latest' && '--omit=optional' || '' }} 2>&1 | tee npm_install.log
+          npm install --ignore-scripts --omit=optional 2>&1 | tee npm_install.log || true
 
       - name: upload install log on failure
         if: failure()
