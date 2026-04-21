@@ -370,13 +370,15 @@ fn update_product(product: Product, state: State<DbConn>) -> Result<(), String> 
 
 #[tauri::command]
 fn delete_products(ids: Vec<String>, state: State<DbConn>) -> Result<usize, String> {
-    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    let mut conn = state.0.lock().map_err(|e| e.to_string())?;
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
     let mut count = 0;
     for id in ids {
-        conn.execute("DELETE FROM products WHERE id = ?", rusqlite::params![id])
+        tx.execute("DELETE FROM products WHERE id = ?", rusqlite::params![id])
             .map_err(|e| e.to_string())?;
         count += 1;
     }
+    tx.commit().map_err(|e| e.to_string())?;
     Ok(count)
 }
 
@@ -391,6 +393,25 @@ fn delete_product(id: String, state: State<DbConn>) -> Result<bool, String> {
 // ============================================================
 // AI Commands
 // ============================================================
+
+/// 清理 AI 响应：移除 <think> 块，提取第一个 JSON 对象
+fn clean_ai_response(response: &str) -> String {
+    // 1. 移除 DeepSeek 等模型的 <think>...</think> 思考块
+    let mut cleaned = response.to_string();
+    if let (Some(start), Some(end)) = (cleaned.find("<think>"), cleaned.find("</think>")) {
+        if end > start {
+            cleaned.drain(start..end + 8); // 8 is length of "</think>"
+        }
+    }
+    let cleaned = cleaned.trim();
+
+    // 2. 提取 JSON 内容块
+    if let (Some(s), Some(e)) = (cleaned.find('{'), cleaned.rfind('}')) {
+        cleaned[s..=e].to_string()
+    } else {
+        cleaned.to_string()
+    }
+}
 
 fn call_ai_chat_raw(base_url: &str, api_key: &str, body: &serde_json::Value) -> Result<String, String> {
     let api_key = api_key.trim();
@@ -453,7 +474,9 @@ fn call_ai_chat(base_url: &str, api_key: &str, model: &str, prompt: &str) -> Res
 }
 
 fn read_image_to_base64(path: &str) -> Result<String, String> {
-    let bytes = std::fs::read(path).map_err(|e| format!("读取图片失败 ({}): {}", path, e))?;
+    // 处理 URL 编码的路径 (如 %20 -> 空格)
+    let decoded_path = urlencoding::decode(path).map_err(|_| "路径解码失败".to_string())?;
+    let bytes = std::fs::read(&*decoded_path).map_err(|e| format!("读取图片失败 ({}): {}", decoded_path, e))?;
     Ok(BASE64.encode(bytes))
 }
 
@@ -469,13 +492,18 @@ fn ai_extract_size(images: Vec<ProductImage>, api_key: String, base_url: String,
 
     for img in images {
         let url = img.url.clone();
-        if url.starts_with("http") {
+        if url.starts_with("http") && !url.contains("asset.localhost") {
             contents.push(serde_json::json!({
                 "type": "image_url",
                 "image_url": { "url": url }
             }));
         } else {
-            let path = url.trim_start_matches("asset://").trim_start_matches("https://asset.localhost/");
+            // 处理 Tauri v2 各种可能的资产协议前缀
+            let path = url
+                .trim_start_matches("asset://")
+                .trim_start_matches("https://asset.localhost/")
+                .trim_start_matches("http://asset.localhost/");
+            
             match read_image_to_base64(path) {
                 Ok(b64) => {
                     let mime = if path.to_lowercase().ends_with(".png") { "image/png" } else { "image/jpeg" };
@@ -501,7 +529,7 @@ fn ai_extract_size(images: Vec<ProductImage>, api_key: String, base_url: String,
     });
 
     let res = call_ai_chat_raw(&base_url, &api_key, &body)?;
-    Ok(res.trim().trim_matches('"').to_string())
+    Ok(clean_ai_response(&res).trim_matches('"').to_string())
 }
 
 #[tauri::command]
@@ -529,18 +557,15 @@ fn ai_generate_title(zh_input: String, en_input: String, info: String, api_key: 
     );
 
     let response = call_ai_chat(&base_url, &api_key, &model, &prompt)?;
-    let json_str = if let (Some(s), Some(e)) = (response.find('{'), response.rfind('}')) {
-        &response[s..=e]
-    } else {
-        &response
-    };
+    let json_str = clean_ai_response(&response);
+    
     let mut zh = String::new();
     let mut en = String::new();
     let mut guide = String::new();
     let mut sku_search = String::new();
     let mut reason = String::new();
 
-    if let Ok(json) = serde_json::from_str::<serde_json::Value>(json_str) {
+    if let Ok(json) = serde_json::from_str::<serde_json::Value>(&json_str) {
         zh = json["title_zh"].as_str().or(json["titleZh"].as_str()).unwrap_or("").to_string();
         en = json["title_en"].as_str().or(json["titleEn"].as_str()).unwrap_or("").to_string();
         guide = json["guide_title"].as_str().or(json["guideTitle"].as_str()).unwrap_or("").to_string();
@@ -571,7 +596,7 @@ fn ai_generate_sku_title(title: String, desc: String, tags: Vec<String>, api_key
     );
 
     let response = call_ai_chat(&base_url, &api_key, &model, &prompt)?;
-    Ok(response.trim().trim_matches('"').to_string())
+    Ok(clean_ai_response(&response).trim_matches('"').to_string())
 }
 
 #[tauri::command]
@@ -592,7 +617,7 @@ fn ai_generate_guide_title(title: String, desc: String, tags: Vec<String>, api_k
     );
 
     let response = call_ai_chat(&base_url, &api_key, &model, &prompt)?;
-    Ok(response.trim().trim_matches('"').to_string())
+    Ok(clean_ai_response(&response).trim_matches('"').to_string())
 }
 
 #[tauri::command]
@@ -634,21 +659,20 @@ Structure and Guidelines (Etsy Boutique Style):
 - Hook: 1-2 sentences. Enthusiastic opening.
 - Size: [SizeSpec] (If empty, estimate from info, e.g. 'Approximately 55mm x 55mm').
 - ✨ FEATURES ✨: 3-5 high-impact points highlighting quality and design.
-4. 💖 PERFECT FOR 💖: 3-5 creative uses (e.g., jackets, bags, gifts).
-5. 💫 ABOUT THE CHARACTER/THEME 💫: (ONLY if the patch features a recognizable character from Anime, Manga, Cartoons, or Pop Culture e.g., Pokémon, Disney, Ghibli, Sanrio, Marvel. Provide 2-3 sentences of charming lore, character traits, or their role in their universe to build an emotional connection. If it's a generic design like a flower, skull, or simple pattern, OMIT this section entirely).
-6. 🎀 HOW TO APPLY (IRON-ON) 🎀: Use these EXACT steps:
+- 💖 PERFECT FOR 💖: 3-5 creative uses (e.g., jackets, bags, gifts).
+- 💫 ABOUT THE CHARACTER/THEME 💫: (ONLY if the patch features a recognizable character from Anime, Manga, Cartoons, or Pop Culture e.g., Pokémon, Disney, Ghibli, Sanrio, Marvel. Provide 2-3 sentences of charming lore, character traits, or their role in their universe to build an emotional connection. If it's a generic design like a flower, skull, or simple pattern, OMIT this section entirely).
+- 🎀 HOW TO APPLY (IRON-ON) 🎀: Use these EXACT steps:
    1. Pre-wash and dry your garment without fabric softener
    2. Place the patch on the desired location, adhesive side down
    3. Cover with a thin cloth or parchment paper
    4. Press a hot iron (no steam) firmly for 30-45 seconds
    5. Allow to cool completely, then press from the inside for extra hold
    6. For best results, sew around the edges after ironing
-7. ✈️ SHIPPING ✈️: 1-sentence mention.
 
 IMPORTANT FORMATTING RULES:
 - DO NOT use HTML tags. Use PLAIN TEXT ONLY.
 - Use DOUBLE NEWLINE characters (\\n\\n) between EVERY section.
-- Use cute/boutique symbols (✨, 💖, 🎀, ✈️, 🌸, 💫) before and after headers as shown above.
+- Use cute/boutique symbols (✨, 💖, 🎀, 🌸, 💫) before and after headers as shown above.
 - Use ALL CAPS for headers.
 - ABSOLUTELY NO preamble or postamble text.
 - TRIM all leading/trailing whitespace.
@@ -719,13 +743,7 @@ Current Desc: {}
     };
 
     let response = call_ai_chat(&base_url, &api_key, &model, &prompt)?;
-    
-    // 统一 JSON 提取逻辑
-    let json_str = if let (Some(s), Some(e)) = (response.find('{'), response.rfind('}')) {
-        &response[s..=e]
-    } else {
-        &response
-    };
+    let json_str = clean_ai_response(&response);
 
     let mut result = serde_json::json!({"zh": "", "en": ""});
 
