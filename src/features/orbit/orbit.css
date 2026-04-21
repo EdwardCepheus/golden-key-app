@@ -1,0 +1,24 @@
+@keyframes neon-pulse {
+  0%, 100% { filter: blur(30px) opacity(0.2); transform: scale(1); }
+  50% { filter: blur(50px) opacity(0.4); transform: scale(1.05); }
+}
+
+@keyframes bubble-pop {
+  0% { opacity: 0; transform: translate(-50%, 20px) scale(0.5); }
+  70% { transform: translate(-50%, -25px) scale(1.05); }
+  100% { opacity: 1; transform: translate(-50%, -20px) scale(1); }
+}
+
+@keyframes border-flow {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+.expert-glow { animation: neon-pulse 3s ease-in-out infinite; }
+.expert-bubble { animation: bubble-pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+.input-flow {
+  background: linear-gradient(90deg, #6366f1, #a855f7, #ec4899, #6366f1);
+  background-size: 200% auto;
+  animation: border-flow 3s linear infinite;
+}
+.no-scrollbar::-webkit-scrollbar { display: none; }
