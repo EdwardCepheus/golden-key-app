@@ -43,7 +43,8 @@ jobs:
           sudo apt-get install -y libwebkit2gtk-4.0-dev build-essential curl wget file libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
 
       - name: install frontend dependencies
-        run: npm ci
+        run: |
+          npm install --no-audit --prefer-offline
 
       - name: build tauri
         run: npm run tauri build -- ${{ matrix.args }}
