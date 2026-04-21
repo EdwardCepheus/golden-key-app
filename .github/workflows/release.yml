@@ -9,17 +9,13 @@ on:
   workflow_dispatch:
 
 jobs:
-  publish-tauri:
+  build:
     permissions:
       contents: write
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - platform: "windows-latest"
-            args: ""
-          - platform: "macos-latest"
-            args: ""
+        platform: [windows-latest, macos-latest]
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -46,35 +42,47 @@ jobs:
         run: npm install --no-audit
 
       - name: build tauri
-        run: npm run tauri build -- ${{ matrix.args }}
+        run: npm run tauri build
 
-      - name: upload release asset (windows)
+      - name: upload windows artifact
         if: matrix.platform == 'windows-latest'
-        uses: actions/upload-release-asset@v1
+        uses: actions/upload-artifact@v4
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: src-tauri/target/release/bundle/dmg/*.exe
-          asset_name: GoldenKey-${{ github.run_number }}-windows.exe
+          name: golden-key-windows
+          path: src-tauri/target/release/bundle/dmg/*.exe
 
-      - name: upload release asset (macos)
+      - name: upload macos artifact
         if: matrix.platform == 'macos-latest'
-        uses: actions/upload-release-asset@v1
+        uses: actions/upload-artifact@v4
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: src-tauri/target/release/bundle/dmg/*.dmg
-          asset_name: GoldenKey-${{ github.run_number }}-macos.dmg
+          name: golden-key-macos
+          path: src-tauri/target/release/bundle/dmg/*.dmg
 
-      - name: Create Release
-        if: matrix.platform == 'macos-latest'
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: download windows artifact
+        uses: actions/download-artifact@v4
         with:
-          tag_name: v${{ github.run_number }}
-          release_name: "Golden Key v${{ github.run_number }}"
+          name: golden-key-windows
+          path: artifacts/windows
+
+      - name: download macos artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: golden-key-macos
+          path: artifacts/macos
+
+      - name: create release
+        uses: softprops/action-gh-release@v2
+        with:
           draft: true
           prerelease: false
-          body: |
-            See the assets below to download the latest version of Golden Key.
-            Build # ${{ github.run_number }}
+          generate_release_notes: false
+          files: |
+            artifacts/windows/*.exe
+            artifacts/macos/*.dmg
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
