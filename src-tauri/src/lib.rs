@@ -52,11 +52,30 @@ pub struct Product {
     pub selling_price: Option<f64>,
     pub merchant_code: String,
     pub size_spec: String,
+    pub taobao_link: String,
+    pub sku_info: Vec<SkuItem>,
     pub images: Vec<ProductImage>,
     pub content_blocks: Vec<ContentBlock>,
     pub tags: Vec<String>,
     pub created_at: String,
     pub updated_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SkuItem {
+    pub sku_id: String,
+    pub brand: String,       // 品牌
+    pub item_no: String,     // 货号
+    pub origin: String,       // 产地
+    pub washable: bool,      // 是否可拆洗
+    pub sales_attr: String,  // 销售属性
+    pub attr_pair: String,    // 属性对
+    pub attributes: String,   // 颜色分类
+    pub pattern: String,      // 图案
+    pub size: String,         // 尺寸
+    pub price: Option<f64>,
+    pub stock: i32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -78,6 +97,8 @@ pub struct ProductInput {
     pub selling_price: Option<f64>,
     pub merchant_code: String,
     pub size_spec: String,
+    pub taobao_link: String,
+    pub sku_info: Vec<SkuItem>,
     pub images: Vec<ProductImage>,
     pub content_blocks: Vec<ContentBlock>,
     pub tags: Vec<String>,
@@ -187,14 +208,15 @@ fn init_db(conn: &Connection) -> SqlResult<()> {
 fn get_all_products(state: State<DbConn>) -> Result<Vec<Product>, String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     let mut stmt = conn
-        .prepare("SELECT id, num_iid, category_id, category_name, title_zh, title_en, guide_title, sku_search_title, description_zh, description_en, cost_price, logistics_cost, packaging_cost, platform_commission, selling_price, merchant_code, size_spec, images, content_blocks, tags, created_at, updated_at FROM products ORDER BY created_at DESC")
+        .prepare("SELECT id, num_iid, category_id, category_name, title_zh, title_en, guide_title, sku_search_title, description_zh, description_en, cost_price, logistics_cost, packaging_cost, platform_commission, selling_price, merchant_code, size_spec, taobao_link, sku_info, images, content_blocks, tags, created_at, updated_at FROM products ORDER BY created_at DESC")
         .map_err(|e| e.to_string())?;
 
     let rows = stmt
         .query_map(rusqlite::params![], |row| {
-            let images_json: String = row.get(17)?;
-            let blocks_json: String = row.get(18)?;
-            let tags_json: String = row.get(19)?;
+            let images_json: String = row.get(19)?;
+            let blocks_json: String = row.get(20)?;
+            let tags_json: String = row.get(21)?;
+            let sku_info_json: String = row.get(18)?;
             Ok(Product {
                 id: row.get(0)?,
                 num_iid: row.get(1)?,
@@ -213,11 +235,13 @@ fn get_all_products(state: State<DbConn>) -> Result<Vec<Product>, String> {
                 selling_price: row.get(14)?,
                 merchant_code: row.get(15)?,
                 size_spec: row.get(16)?,
+                taobao_link: row.get(17)?,
+                sku_info: serde_json::from_str(&sku_info_json).unwrap_or_default(),
                 images: serde_json::from_str(&images_json).unwrap_or_default(),
                 content_blocks: serde_json::from_str(&blocks_json).unwrap_or_default(),
                 tags: serde_json::from_str(&tags_json).unwrap_or_default(),
-                created_at: row.get(20)?,
-                updated_at: row.get(21)?,
+                created_at: row.get(22)?,
+                updated_at: row.get(23)?,
             })
         })
         .map_err(|e| e.to_string())?;
@@ -230,13 +254,14 @@ fn get_all_products(state: State<DbConn>) -> Result<Vec<Product>, String> {
 fn get_product(id: String, state: State<DbConn>) -> Result<Product, String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     let mut stmt = conn
-        .prepare("SELECT id, num_iid, category_id, category_name, title_zh, title_en, guide_title, sku_search_title, description_zh, description_en, cost_price, logistics_cost, packaging_cost, platform_commission, selling_price, merchant_code, size_spec, images, content_blocks, tags, created_at, updated_at FROM products WHERE id = ?")
+        .prepare("SELECT id, num_iid, category_id, category_name, title_zh, title_en, guide_title, sku_search_title, description_zh, description_en, cost_price, logistics_cost, packaging_cost, platform_commission, selling_price, merchant_code, size_spec, taobao_link, sku_info, images, content_blocks, tags, created_at, updated_at FROM products WHERE id = ?")
         .map_err(|e| e.to_string())?;
 
     let product = stmt.query_row(rusqlite::params![id], |row| {
-        let images_json: String = row.get(17)?;
-        let blocks_json: String = row.get(18)?;
-        let tags_json: String = row.get(19)?;
+        let images_json: String = row.get(19)?;
+        let blocks_json: String = row.get(20)?;
+        let tags_json: String = row.get(21)?;
+        let sku_info_json: String = row.get(18)?;
         Ok(Product {
             id: row.get(0)?,
             num_iid: row.get(1)?,
@@ -255,11 +280,13 @@ fn get_product(id: String, state: State<DbConn>) -> Result<Product, String> {
             selling_price: row.get(14)?,
             merchant_code: row.get(15)?,
             size_spec: row.get(16)?,
+            taobao_link: row.get(17)?,
+            sku_info: serde_json::from_str(&sku_info_json).unwrap_or_default(),
             images: serde_json::from_str(&images_json).unwrap_or_default(),
             content_blocks: serde_json::from_str(&blocks_json).unwrap_or_default(),
             tags: serde_json::from_str(&tags_json).unwrap_or_default(),
-            created_at: row.get(20)?,
-            updated_at: row.get(21)?,
+            created_at: row.get(22)?,
+            updated_at: row.get(23)?,
         })
     }).map_err(|e| e.to_string())?;
     Ok(product)
@@ -274,9 +301,10 @@ fn create_product(data: ProductInput, state: State<DbConn>) -> Result<Product, S
     let images_json = serde_json::to_string(&data.images).unwrap_or_else(|_| "[]".to_string());
     let blocks_json = serde_json::to_string(&data.content_blocks).unwrap_or_else(|_| "[]".to_string());
     let tags_json = serde_json::to_string(&data.tags).unwrap_or_else(|_| "[]".to_string());
+    let sku_info_json = serde_json::to_string(&data.sku_info).unwrap_or_else(|_| "[]".to_string());
 
     conn.execute(
-        "INSERT INTO products (id, num_iid, category_id, category_name, title_zh, title_en, guide_title, sku_search_title, description_zh, description_en, cost_price, logistics_cost, packaging_cost, platform_commission, selling_price, merchant_code, size_spec, images, content_blocks, tags, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO products (id, num_iid, category_id, category_name, title_zh, title_en, guide_title, sku_search_title, description_zh, description_en, cost_price, logistics_cost, packaging_cost, platform_commission, selling_price, merchant_code, size_spec, taobao_link, sku_info, images, content_blocks, tags, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         rusqlite::params![
             id,
             data.num_iid,
@@ -295,6 +323,8 @@ fn create_product(data: ProductInput, state: State<DbConn>) -> Result<Product, S
             data.selling_price,
             data.merchant_code,
             data.size_spec,
+            data.taobao_link,
+            sku_info_json,
             images_json,
             blocks_json,
             tags_json,
@@ -321,6 +351,8 @@ fn create_product(data: ProductInput, state: State<DbConn>) -> Result<Product, S
         selling_price: data.selling_price,
         merchant_code: data.merchant_code,
         size_spec: data.size_spec,
+        taobao_link: data.taobao_link,
+        sku_info: data.sku_info,
         images: data.images,
         content_blocks: data.content_blocks,
         tags: data.tags,
@@ -337,9 +369,10 @@ fn update_product(product: Product, state: State<DbConn>) -> Result<(), String> 
     let images_json = serde_json::to_string(&product.images).unwrap_or_else(|_| "[]".to_string());
     let blocks_json = serde_json::to_string(&product.content_blocks).unwrap_or_else(|_| "[]".to_string());
     let tags_json = serde_json::to_string(&product.tags).unwrap_or_else(|_| "[]".to_string());
+    let sku_info_json = serde_json::to_string(&product.sku_info).unwrap_or_else(|_| "[]".to_string());
 
     conn.execute(
-        "UPDATE products SET num_iid = ?, category_id = ?, category_name = ?, title_zh = ?, title_en = ?, guide_title = ?, sku_search_title = ?, description_zh = ?, description_en = ?, cost_price = ?, logistics_cost = ?, packaging_cost = ?, platform_commission = ?, selling_price = ?, merchant_code = ?, size_spec = ?, images = ?, content_blocks = ?, tags = ?, updated_at = ? WHERE id = ?",
+        "UPDATE products SET num_iid = ?, category_id = ?, category_name = ?, title_zh = ?, title_en = ?, guide_title = ?, sku_search_title = ?, description_zh = ?, description_en = ?, cost_price = ?, logistics_cost = ?, packaging_cost = ?, platform_commission = ?, selling_price = ?, merchant_code = ?, size_spec = ?, taobao_link = ?, sku_info = ?, images = ?, content_blocks = ?, tags = ?, updated_at = ? WHERE id = ?",
         rusqlite::params![
             product.num_iid,
             product.category_id,
@@ -357,6 +390,8 @@ fn update_product(product: Product, state: State<DbConn>) -> Result<(), String> 
             product.selling_price,
             product.merchant_code,
             product.size_spec,
+            product.taobao_link,
+            sku_info_json,
             images_json,
             blocks_json,
             tags_json,
@@ -487,7 +522,10 @@ fn ai_extract_size(images: Vec<ProductImage>, api_key: String, base_url: String,
     let mut contents = Vec::new();
     contents.push(serde_json::json!({
         "type": "text",
-        "text": "请分析这张/这些图片，找到其中的刺绣布贴产品尺寸。通常图片中会有卷尺、刻度尺或手写标注。请直接返回识别到的尺寸（例如：60mm x 60mm 或 7cm），不要有任何解释文字。如果没有找到尺寸信息，请返回 '未找到尺寸'。"
+        "text": "你是一个资深的电商产品规格专家。请分析提供的刺绣布贴图片，识别产品的尺寸规格。
+重点关注图片中的卷尺、直尺或手写标注。
+请直接返回尺寸数值（如：6cm x 6cm 或 75mm x 50mm），严禁包含任何多余的解释、前言或标点符号。
+如果图片中完全没有尺寸线索，请返回 '未找到尺寸'。"
     }));
 
     for img in images {
@@ -495,7 +533,7 @@ fn ai_extract_size(images: Vec<ProductImage>, api_key: String, base_url: String,
         if url.starts_with("http") && !url.contains("asset.localhost") {
             contents.push(serde_json::json!({
                 "type": "image_url",
-                "image_url": { "url": url }
+                "image_url": { "url": url, "detail": "high" }
             }));
         } else {
             // 处理 Tauri v2 各种可能的资产协议前缀
@@ -506,10 +544,15 @@ fn ai_extract_size(images: Vec<ProductImage>, api_key: String, base_url: String,
             
             match read_image_to_base64(path) {
                 Ok(b64) => {
-                    let mime = if path.to_lowercase().ends_with(".png") { "image/png" } else { "image/jpeg" };
+                    let mime = if path.to_lowercase().ends_with(".png") { "image/png" } 
+                              else if path.to_lowercase().ends_with(".webp") { "image/webp" }
+                              else { "image/jpeg" };
                     contents.push(serde_json::json!({
                         "type": "image_url",
-                        "image_url": { "url": format!("data:{};base64,{}", mime, b64) }
+                        "image_url": { 
+                            "url": format!("data:{};base64,{}", mime, b64),
+                            "detail": "high"
+                        }
                     }));
                 },
                 Err(e) => {
@@ -535,17 +578,18 @@ fn ai_extract_size(images: Vec<ProductImage>, api_key: String, base_url: String,
 #[tauri::command]
 fn ai_generate_title(zh_input: String, en_input: String, info: String, api_key: String, base_url: String, model: String) -> Result<AITitleResult, String> {
     let prompt = format!(
-        "请优化以下刺绣布贴产品的标题。
-1. 中文标题：淘宝搜索用，<30字，融入高权重词。
-2. 英文标题：Etsy用，<140字符。
-3. 导购标题：淘宝卖点展示，<15字。
-4. SKU搜索标题：淘宝精准流量，10-15个中文字。要求包含核心卖点和SKU特征。
+        "请基于【淘宝SEO规则】优化以下刺绣布贴产品的标题。
+要求：
+1. 中文标题：淘宝搜索用，严格控制在30字以内，包含核心词（如：刺绣、布贴、补丁贴、自粘/背胶）、风格词（如：国潮、动漫、复古）及材质词。
+2. 导购标题：淘宝卖点展示，严格控制在15字以内。要求： punchy 营销语，如“一烫即牢 拯救无趣包包”。
+3. SKU/SKC搜索标题：淘宝精准引流，严格控制在10-15个汉字。要求：核心词 + 具体的款式特征（如：蝴蝶忍、金色祥云、魔术贴版）。
+4. 英文标题：Etsy用，<140字符。
 
 原中文：{}
 原英文：{}
 描述：{}
 
-返回格式：
+必须直接返回 JSON 格式（不要包含任何解释性文字或思考过程）：
 {{
   \"title_zh\": \"...\",
   \"title_en\": \"...\",
@@ -573,25 +617,26 @@ fn ai_generate_title(zh_input: String, en_input: String, info: String, api_key: 
         reason = json["reason"].as_str().unwrap_or("").to_string();
     }
 
-    if zh.is_empty() { return Err(format!("AI 解析失败。回复：{}", response)); }
+    if zh.is_empty() { return Err(format!("AI 响应格式解析失败，请检查模型输出。")); }
     Ok(AITitleResult { title_zh: zh, title_en: en, guide_title: guide, sku_search_title: sku_search, reason })
 }
 
 #[tauri::command]
 fn ai_generate_sku_title(title: String, desc: String, tags: Vec<String>, api_key: String, base_url: String, model: String) -> Result<String, String> {
     let prompt = format!(
-        "请为以下刺绣布贴产品生成一个精准的【淘宝SKU搜索标题】。
+        "请为以下刺绣布贴产品生成一个精准的【淘宝SKU/SKC搜索标题】。
 要求：
-1. 长度严格控制在10-15个汉字之间。
-2. 包含产品核心关键词（如：刺绣布贴、补丁贴等）。
-3. 必须包含一个具体的SKU特征（如：蝴蝶忍、魔术贴、某某颜色等）。
-4. 不要包含任何特殊符号，纯汉字或汉字+英数。
+1. 长度严格控制在10-15个汉字之间（禁止超过15字）。
+2. 包含产品核心关键词（如：刺绣布贴、补丁贴、自粘补丁等）。
+3. 必须包含一个具体的款式特征（如：蝴蝶忍、魔术贴版、黑色加大款等）。
+4. 结构参考：[核心词] + [SKU款式特征]。
+5. 禁止使用特殊符号，严禁包含“最、第一、包邮”等违禁词。
 
 产品名称：{}
 描述：{}
 标签：{}
 
-直接返回SKU搜索标题内容，不要有任何多余文字或引号。",
+直接返回SKU搜索标题内容，不要有任何多余文字、引号或解释。",
         title, desc, tags.join(", ")
     );
 
@@ -602,17 +647,18 @@ fn ai_generate_sku_title(title: String, desc: String, tags: Vec<String>, api_key
 #[tauri::command]
 fn ai_generate_guide_title(title: String, desc: String, tags: Vec<String>, api_key: String, base_url: String, model: String) -> Result<String, String> {
     let prompt = format!(
-        "请为以下产品生成一个吸引人的淘宝导购标题。
+        "请为以下刺绣布贴产品生成一个吸引人的【淘宝导购标题】。
 要求：
-1. 长度严格控制在15个汉字以内。
-2. 突出核心卖点（如：刺绣精美、热熔背胶、动漫周边等）。
-3. 语气要轻快、有吸引力。
+1. 长度严格控制在15个汉字以内（禁止超过15字）。
+2. 突出核心卖点（如：一烫即牢、精美刺绣、个性DIY、旧衣翻新等）。
+3. 语气要轻快、具有营销力。
+4. 严禁包含“最、第一”等违禁词。
 
 产品名称：{}
 描述：{}
 标签：{}
 
-直接返回导购标题内容，不要有任何多余文字或引号。",
+直接返回导购标题内容，不要有任何多余文字、引号或解释。",
         title, desc, tags.join(", ")
     );
 
@@ -622,34 +668,49 @@ fn ai_generate_guide_title(title: String, desc: String, tags: Vec<String>, api_k
 
 #[tauri::command]
 fn ai_suggest_price(cost: f64, info: String, api_key: String, base_url: String, model: String) -> Result<AIPriceResult, String> {
-    let prompt = format!("成本 {} 元，产品：{}。推荐售价、利润额、利润率、理由。
-格式：建议售价：[数字]，利润额：[数字]，利润率：[数字]，理由：[文字]", cost, info);
+    let prompt = format!(
+        "作为电商定价专家，请为以下刺绣布贴产品推荐销售价格。
+成本价：{} 元
+产品信息：{}
+
+要求：
+1. 考虑 30%-60% 的合理利润率。
+2. 考虑电商平台的佣金（约 10%）和物流成本。
+3. 给出详细的定价理由。
+
+必须直接返回 JSON 格式（不要包含任何解释性文字或思考过程）：
+{{
+  \"suggested_price\": 0.0,
+  \"profit\": 0.0,
+  \"profit_rate\": 0.0,
+  \"reason\": \"...\"
+}}",
+        cost, info
+    );
+
     let response = call_ai_chat(&base_url, &api_key, &model, &prompt)?;
+    let json_str = clean_ai_response(&response);
     
-    let mut suggested = cost * 3.0;
-    let mut profit = cost * 2.0;
-    let mut rate = 66.7;
-    let mut reason = String::new();
-
-    for line in response.lines() {
-        let l = line.to_lowercase();
-        if l.contains("售价") || l.contains("价格") {
-            suggested = line.split(&[':', '：'][..]).last().unwrap_or("").trim().replace("元", "").parse().unwrap_or(suggested);
-        } else if l.contains("利润额") {
-            profit = line.split(&[':', '：'][..]).last().unwrap_or("").trim().replace("元", "").parse().unwrap_or(profit);
-        } else if l.contains("利润率") {
-            rate = line.split(&[':', '：'][..]).last().unwrap_or("").trim().replace("%", "").parse().unwrap_or(rate);
-        } else if l.contains("理由") {
-            reason = line.split(&[':', '：'][..]).last().unwrap_or("").trim().to_string();
-        }
+    if let Ok(json) = serde_json::from_str::<serde_json::Value>(&json_str) {
+        let suggested_price = json["suggested_price"].as_f64().or_else(|| json["suggestedPrice"].as_f64()).unwrap_or(cost * 3.0);
+        let profit = json["profit"].as_f64().or_else(|| json["profitAmount"].as_f64()).unwrap_or(suggested_price - cost);
+        let profit_rate = json["profit_rate"].as_f64().or_else(|| json["profitRate"].as_f64()).unwrap_or(60.0);
+        let reason = json["reason"].as_str().unwrap_or("").to_string();
+        
+        Ok(AIPriceResult {
+            suggested_price,
+            profit,
+            profit_rate,
+            reason,
+        })
+    } else {
+        Ok(AIPriceResult {
+            suggested_price: cost * 3.0,
+            profit: cost * 2.0,
+            profit_rate: 66.7,
+            reason: format!("AI 解析失败，使用默认建议值。原始输出: {}", response),
+        })
     }
-
-    Ok(AIPriceResult {
-        suggested_price: (suggested * 100.0).round() / 100.0,
-        profit: (profit * 100.0).round() / 100.0,
-        profit_rate: (rate * 10.0_f64).round() / 10.0,
-        reason: if reason.is_empty() { "AI 计算完成".to_string() } else { reason },
-    })
 }
 
 #[tauri::command]

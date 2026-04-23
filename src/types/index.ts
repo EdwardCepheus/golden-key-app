@@ -21,6 +21,21 @@ export interface ProductImage {
   alt: string;
 }
 
+export interface SkuItem {
+  skuId: string;
+  brand: string;
+  itemNo: string;
+  origin: string;
+  washable: boolean;
+  salesAttr: string;
+  attrPair: string;
+  attributes: string;
+  pattern: string;
+  size: string;
+  price: number | null;
+  stock: number;
+}
+
 export interface Product {
   id: string;
   numIid: string;              // 淘宝商品Id
@@ -39,6 +54,8 @@ export interface Product {
   sellingPrice: number | null; // 一口价
   merchantCode: string;       // 商家编码
   sizeSpec: string;           // 尺寸规格
+  taobaoLink: string;        // 淘宝商品链接
+  skuInfo: SkuItem[];        // SKU信息列表
   images: ProductImage[];
   contentBlocks: ContentBlock[];
   tags: string[];
@@ -63,6 +80,8 @@ export interface ProductInput {
   sellingPrice: number | null;
   merchantCode: string;
   sizeSpec: string;
+  taobaoLink: string;
+  skuInfo: SkuItem[];
   images: ProductImage[];
   contentBlocks: ContentBlock[];
   tags: string[];
@@ -111,6 +130,8 @@ export function createEmptyProduct(): Product {
     sellingPrice: null,
     merchantCode: "",
     sizeSpec: "",
+    taobaoLink: "",
+    skuInfo: [],
     images: [],
     contentBlocks: [],
     tags: [],
@@ -137,6 +158,8 @@ export function toProductInput(p: Product): ProductInput {
     sellingPrice: p.sellingPrice,
     merchantCode: p.merchantCode,
     sizeSpec: p.sizeSpec,
+    taobaoLink: p.taobaoLink || "",
+    skuInfo: p.skuInfo || [],
     images: p.images,
     contentBlocks: p.contentBlocks,
     tags: p.tags,

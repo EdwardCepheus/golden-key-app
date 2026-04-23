@@ -36,6 +36,16 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "windows": {
+      "nsis": {
+        "oneClick": false,
+        "perMachine": true,
+        "allowElevation": true,
+        "allowToChangeInstallationDirectory": true,
+        "installerIcon": "icons/icon.ico",
+        "installMode": "perMachine"
+      }
+    }
   }
 }

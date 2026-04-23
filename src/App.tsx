@@ -603,7 +603,75 @@ function BasicTab({ product, onUpdate, onAITitle, onAIGuide, onAISku, onAISize, 
       <div className="grid grid-cols-2 gap-4 bg-dark-surface border border-dark-border rounded-xl p-4">
         <div><label className="block text-xs text-text-muted mb-1.5">商品Id</label><input type="text" value={product.numIid} onChange={(e) => onUpdate({ numIid: e.target.value })} className="input w-full text-sm font-mono" /></div>
         <div><label className="block text-xs text-text-muted mb-1.5">商家编码</label><input type="text" value={product.merchantCode} onChange={(e) => onUpdate({ merchantCode: e.target.value })} className="input w-full text-sm font-mono" /></div>
-        <div className="col-span-2">
+        <div className="col-span-2"><label className="block text-xs text-text-muted mb-1.5">淘宝链接</label><input type="text" value={product.taobaoLink || ""} onChange={(e) => onUpdate({ taobaoLink: e.target.value })} className="input w-full text-sm font-mono" placeholder="https://..." /></div>
+      </div>
+      {/* SKU信息 */}
+      {product.skuInfo && product.skuInfo.length > 0 && (
+        <div className="bg-dark-surface border border-dark-border rounded-xl p-4">
+          <h3 className="font-medium text-sm mb-3">📦 SKU信息 ({product.skuInfo.length}个)</h3>
+          <div className="space-y-4 max-h-60 overflow-y-auto">
+            {product.skuInfo.map((sku: any, idx: number) => {
+              const updateSku = (field: string, value: string) => {
+                const newSkuInfo = [...product.skuInfo];
+                newSkuInfo[idx] = { ...newSkuInfo[idx], [field]: value };
+                onUpdate({ skuInfo: newSkuInfo });
+              };
+              return (
+                <div key={idx} className="p-3 bg-dark-bg rounded-lg text-xs space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-text-muted">SKU:</span>
+                    <span className="font-mono text-text-primary">{sku.skuId}</span>
+                  </div>
+                  <div className="grid grid-cols-4 gap-2">
+                    <div>
+                      <label className="text-text-muted text-[10px]">品牌</label>
+                      <input type="text" value={sku.brand || ""} onChange={(e) => updateSku("brand", e.target.value)} className="input w-full text-xs mt-0.5" placeholder="-" />
+                    </div>
+                    <div>
+                      <label className="text-text-muted text-[10px]">货号</label>
+                      <input type="text" value={sku.itemNo || ""} onChange={(e) => updateSku("itemNo", e.target.value)} className="input w-full text-xs mt-0.5" placeholder="-" />
+                    </div>
+                    <div>
+                      <label className="text-text-muted text-[10px]">产地</label>
+                      <input type="text" value={sku.origin || ""} onChange={(e) => updateSku("origin", e.target.value)} className="input w-full text-xs mt-0.5" placeholder="-" />
+                    </div>
+                    <div>
+                      <label className="text-text-muted text-[10px]">可拆洗</label>
+                      <input type="text" value={sku.washable ? "是" : ""} onChange={(e) => updateSku("washable", e.target.value === "是" ? "true" : "")} className="input w-full text-xs mt-0.5" placeholder="-" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-text-muted text-[10px]">销售属性</label>
+                      <input type="text" value={sku.salesAttr || ""} onChange={(e) => updateSku("salesAttr", e.target.value)} className="input w-full text-xs mt-0.5" placeholder="-" />
+                    </div>
+                    <div>
+                      <label className="text-text-muted text-[10px]">属性对</label>
+                      <input type="text" value={sku.attrPair || ""} onChange={(e) => updateSku("attrPair", e.target.value)} className="input w-full text-xs mt-0.5" placeholder="-" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label className="text-text-muted text-[10px]">颜色分类</label>
+                      <input type="text" value={sku.attributes || ""} onChange={(e) => updateSku("attributes", e.target.value)} className="input w-full text-xs mt-0.5" placeholder="-" />
+                    </div>
+                    <div>
+                      <label className="text-text-muted text-[10px]">图案</label>
+                      <input type="text" value={sku.pattern || ""} onChange={(e) => updateSku("pattern", e.target.value)} className="input w-full text-xs mt-0.5" placeholder="-" />
+                    </div>
+                    <div>
+                      <label className="text-text-muted text-[10px]">尺寸</label>
+                      <input type="text" value={sku.size || ""} onChange={(e) => updateSku("size", e.target.value)} className="input w-full text-xs mt-0.5" placeholder="-" />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      <div className="grid grid-cols-2 gap-4 bg-dark-surface border border-dark-border rounded-xl p-4">
+        <div>
           <label className="block text-xs text-text-muted mb-1.5">尺寸规格</label>
           <div className="flex gap-2">
             <input type="text" value={product.sizeSpec} onChange={(e) => onUpdate({ sizeSpec: e.target.value })} className="input flex-1 text-sm font-mono" />
