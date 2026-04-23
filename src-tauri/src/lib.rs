@@ -578,12 +578,15 @@ fn ai_extract_size(images: Vec<ProductImage>, api_key: String, base_url: String,
 #[tauri::command]
 fn ai_generate_title(zh_input: String, en_input: String, info: String, api_key: String, base_url: String, model: String) -> Result<AITitleResult, String> {
     let prompt = format!(
-        "请基于【淘宝SEO规则】优化以下刺绣布贴产品的标题。
+        "请基于【2026 淘宝 SEO 正优化规则】优化以下刺绣布贴产品的标题。
 要求：
-1. 中文标题：淘宝搜索用，严格控制在30字以内，包含核心词（如：刺绣、布贴、补丁贴、自粘/背胶）、风格词（如：国潮、动漫、复古）及材质词。
-2. 导购标题：淘宝卖点展示，严格控制在15字以内。要求： punchy 营销语，如“一烫即牢 拯救无趣包包”。
-3. SKU/SKC搜索标题：淘宝精准引流，严格控制在10-15个汉字。要求：核心词 + 具体的款式特征（如：蝴蝶忍、金色祥云、魔术贴版）。
-4. 英文标题：Etsy用，<140字符。
+1. 中文标题：淘宝搜索用，严格控制在 30 字以内。必须包含核心词（如：羽绒服破洞修补、修补无痕、补丁贴）、风格词（如：国潮、动漫、复古）及材质词。
+2. 禁忌：严禁出现“免缝自粘”字样。严禁使用极限词（最、第一、唯一等）。
+3. 导购标题：淘宝卖点展示，严格控制在 15 字以内。要求：具有营销力的 punchy 语，如“一烫即牢 拯救无趣包包”。
+4. SKU/SKC搜索标题：淘宝精准引流，10-15 个汉字。核心词 + 具体的款式特征。
+5. 关键词权重：将“羽绒服破洞修补”或“修补无痕”置于标题最前端。
+6. IP 处理：允许并保留“宝可梦”、“鬼灭之刃”关键词；其他品牌采用描述性替代词以防侵权。
+7. 英文标题：Etsy 用，<140 字符，精工细腻风格。
 
 原中文：{}
 原英文：{}
@@ -624,19 +627,20 @@ fn ai_generate_title(zh_input: String, en_input: String, info: String, api_key: 
 #[tauri::command]
 fn ai_generate_sku_title(title: String, desc: String, tags: Vec<String>, api_key: String, base_url: String, model: String) -> Result<String, String> {
     let prompt = format!(
-        "请为以下刺绣布贴产品生成一个精准的【淘宝SKU/SKC搜索标题】。
+        "请为以下刺绣布贴产品生成一个精准的【2026 淘宝 SKU/SKC 搜索标题】。
 要求：
-1. 长度严格控制在10-15个汉字之间（禁止超过15字）。
-2. 包含产品核心关键词（如：刺绣布贴、补丁贴、自粘补丁等）。
-3. 必须包含一个具体的款式特征（如：蝴蝶忍、魔术贴版、黑色加大款等）。
-4. 结构参考：[核心词] + [SKU款式特征]。
-5. 禁止使用特殊符号，严禁包含“最、第一、包邮”等违禁词。
+1. 长度严格控制在 10-15 个汉字之间。
+2. 包含产品核心关键词（如：羽绒服破洞修补、修补无痕、补丁贴）。
+3. 必须包含一个具体的款式特征。
+4. 结构：[核心词] + [SKU 款式特征]。
+5. 严禁出现“免缝自粘”字样。严禁包含“最、第一、包邮”等违禁词。
+6. 允许保留“宝可梦”、“鬼灭之刃”品牌名。
 
 产品名称：{}
 描述：{}
 标签：{}
 
-直接返回SKU搜索标题内容，不要有任何多余文字、引号或解释。",
+直接返回 SKU 搜索标题内容，不要有任何多余文字、引号或解释。",
         title, desc, tags.join(", ")
     );
 
@@ -647,12 +651,12 @@ fn ai_generate_sku_title(title: String, desc: String, tags: Vec<String>, api_key
 #[tauri::command]
 fn ai_generate_guide_title(title: String, desc: String, tags: Vec<String>, api_key: String, base_url: String, model: String) -> Result<String, String> {
     let prompt = format!(
-        "请为以下刺绣布贴产品生成一个吸引人的【淘宝导购标题】。
+        "请为以下刺绣布贴产品生成一个吸引人的【2026 淘宝导购标题】。
 要求：
-1. 长度严格控制在15个汉字以内（禁止超过15字）。
-2. 突出核心卖点（如：一烫即牢、精美刺绣、个性DIY、旧衣翻新等）。
+1. 长度严格控制在 15 个汉字以内。
+2. 突出核心卖点（如：一烫即牢、精工刺绣、修补无痕、拯救羽绒服等）。
 3. 语气要轻快、具有营销力。
-4. 严禁包含“最、第一”等违禁词。
+4. 严禁出现“免缝自粘”字样。严禁包含“最、第一”等违禁词。
 
 产品名称：{}
 描述：{}
